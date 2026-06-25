@@ -1,4 +1,4 @@
 export const environment = {
-  production: false,
-  apiUrl: 'https://astress-backend.onrender.com'
+  production: true,
+  apiUrl: 'https://astress-backend.onrender.com/api'
 };

@@ -1,0 +1,19 @@
+# Dependencias
+node_modules/
+dist/
+.angular/
+
+# Variables de entorno (no commitear environment.prod con URLs privadas si aplica)
+# src/environments/environment.prod.ts  ← descomenta si quieres ignorarlo
+
+# Caché
+.cache/
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

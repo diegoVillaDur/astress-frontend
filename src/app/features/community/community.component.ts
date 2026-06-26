@@ -20,7 +20,37 @@ import { CommunityRoom, CommunityPost } from '../../core/models/models';
 
         <!-- ── Salas ─────────────────────────────── -->
         <aside class="rooms-panel">
-          <div class="rooms-title">Salas</div>
+          <div class="rooms-header">
+            <div class="rooms-title">Salas</div>
+            <button class="btn-new-room" (click)="toggleNewRoomForm()" title="Nueva sala">＋</button>
+          </div>
+
+          <!-- Formulario nueva sala -->
+          <div class="new-room-form" *ngIf="showNewRoomForm">
+            <input
+              class="input input-sm"
+              placeholder="Nombre de la sala"
+              [(ngModel)]="newRoomName"
+              maxlength="60" />
+            <input
+              class="input input-sm"
+              placeholder="Descripción (opcional)"
+              [(ngModel)]="newRoomDescription"
+              maxlength="200" />
+            <div class="new-room-actions">
+              <button
+                class="btn btn-coral btn-sm"
+                [disabled]="!newRoomName.trim() || creatingRoom"
+                (click)="createRoom()">
+                {{ creatingRoom ? 'Creando...' : 'Crear sala' }}
+              </button>
+              <button class="btn btn-ghost btn-sm" (click)="toggleNewRoomForm()">
+                Cancelar
+              </button>
+            </div>
+            <div *ngIf="roomError" class="alert alert-error mt-8">{{ roomError }}</div>
+          </div>
+
           <div *ngIf="loadingRooms" class="spinner" style="margin:20px auto; width:20px; height:20px;"></div>
           <div class="rooms-list" *ngIf="!loadingRooms">
             <button
@@ -31,6 +61,9 @@ import { CommunityRoom, CommunityPost } from '../../core/models/models';
               <div class="room-name">{{ r.name }}</div>
               <div class="room-count text-xs">{{ r._count?.posts ?? 0 }} posts</div>
             </button>
+            <div *ngIf="rooms.length === 0" class="no-rooms">
+              Aún no hay salas. ¡Crea la primera!
+            </div>
           </div>
         </aside>
 
@@ -130,7 +163,58 @@ import { CommunityRoom, CommunityPost } from '../../core/models/models';
       position: sticky;
       top: 24px;
     }
-    .rooms-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); margin-bottom: 12px; }
+    .rooms-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .rooms-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-3);
+    }
+    .btn-new-room {
+      background: var(--primary-dim);
+      border: none;
+      border-radius: 50%;
+      width: 26px;
+      height: 26px;
+      font-size: 1.1rem;
+      line-height: 1;
+      cursor: pointer;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s;
+      &:hover { background: var(--primary); color: #fff; }
+    }
+
+    /* ── New room form ──────────────────────── */
+    .new-room-form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding: 12px;
+      background: var(--bg-2);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+    .new-room-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .no-rooms {
+      font-size: 0.8rem;
+      color: var(--text-3);
+      text-align: center;
+      padding: 16px 0;
+    }
+
     .rooms-list  { display: flex; flex-direction: column; gap: 4px; }
     .room-btn {
       text-align: left;
@@ -141,7 +225,6 @@ import { CommunityRoom, CommunityPost } from '../../core/models/models';
       cursor: pointer;
       transition: all 0.15s;
       width: 100%;
-
       &:hover  { background: var(--bg-2); }
       &.active { background: var(--primary-dim); border-color: transparent; }
     }
@@ -220,21 +303,57 @@ export class CommunityComponent implements OnInit {
   posts: CommunityPost[] = [];
   selectedRoom: CommunityRoom | null = null;
 
+  // Post
   newContent = '';
   isAnonymous = false;
-
-  loadingRooms = false;
-  loadingPosts = false;
   posting = false;
   postError = '';
   postSuccess = '';
 
+  // Nueva sala
+  showNewRoomForm = false;
+  newRoomName = '';
+  newRoomDescription = '';
+  creatingRoom = false;
+  roomError = '';
+
+  loadingRooms = false;
+  loadingPosts = false;
+
   constructor(
     private authService: AuthService,
     private communityService: CommunityService,
-  ) {}
+  ) { }
 
   get userId() { return this.authService.userId; }
+
+  toggleNewRoomForm() {
+    this.showNewRoomForm = !this.showNewRoomForm;
+    this.newRoomName = '';
+    this.newRoomDescription = '';
+    this.roomError = '';
+  }
+
+  createRoom() {
+    if (!this.newRoomName.trim()) return;
+    this.creatingRoom = true;
+    this.roomError = '';
+
+    this.communityService.createRoom(this.newRoomName.trim(), this.newRoomDescription.trim()).subscribe({
+      next: (r) => {
+        this.rooms.unshift({ ...r.room, _count: { posts: 0 } });
+        this.creatingRoom = false;
+        this.showNewRoomForm = false;
+        this.newRoomName = '';
+        this.newRoomDescription = '';
+        this.selectRoom(this.rooms[0]);
+      },
+      error: (err) => {
+        this.roomError = err?.error?.message ?? 'Error al crear la sala.';
+        this.creatingRoom = false;
+      }
+    });
+  }
 
   selectRoom(room: CommunityRoom) {
     this.selectedRoom = room;
@@ -274,7 +393,7 @@ export class CommunityComponent implements OnInit {
         if (post._count) post._count.hearts = r.hearts;
         else post._count = { hearts: r.hearts };
       },
-      error: () => {}
+      error: () => { }
     });
   }
 
@@ -282,7 +401,7 @@ export class CommunityComponent implements OnInit {
     if (!confirm('¿Eliminar esta publicación?')) return;
     this.communityService.deletePost(id).subscribe({
       next: () => this.posts = this.posts.filter(p => p.id !== id),
-      error: () => {}
+      error: () => { }
     });
   }
 

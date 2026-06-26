@@ -45,6 +45,13 @@ export class CommunityService {
     return this.http.get<{ rooms: CommunityRoom[] }>(`${this.API}/rooms`);
   }
 
+  createRoom(name: string, description: string) {
+    return this.http.post<{ room: CommunityRoom }>(
+      `${this.API}/rooms`,
+      { name, description }
+    );
+  }
+
   getPostsByRoom(roomId: string) {
     return this.http.get<{ roomId: string; room: string; totalPosts: number; posts: CommunityPost[] }>(
       `${this.API}/rooms/${roomId}/posts`
